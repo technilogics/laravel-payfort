@@ -54,6 +54,116 @@ trait PayfortAPIRequest
     }
 
     /**
+     * Make Payfort Payment Authorizarion Request
+     *
+     * @see https://paymentservices-reference.payfort.com/docs/api/build/index.html#standard-merchant-page-integration-response
+     *
+     * @param array $data the data to submit to paymentAPI
+     * @return object Payfort response
+     *
+     * @throws \LaravelPayfort\Exceptions\PayfortRequestException
+     */
+    public function doPaymentAuthorization($data)
+    {
+
+        $params = [
+            'command' => 'AUTHORIZATION',
+            'access_code' => $this->config['access_code'],
+            'merchant_identifier' => $this->config['merchant_identifier'],
+            'merchant_reference' => $data['merchant_reference'],
+            'amount' => $this->getPayfortAmount($data['amount'], $data['currency']),
+            'language' => $this->config['language'],
+            'currency' => $data['currency'],                       
+            'customer_ip' =>  '119.160.96.72',//request()->ip(),  
+            'customer_email' => $data['customer_email'],  
+            'token_name' => $data['token_name'],
+            'return_url' => $this->config['return_url']
+        ];
+
+        // print_r($params);
+
+        $response = $this->callPayfortAPI($params);
+        // dd($response);
+        /*
+         * According to payfort documentation
+         * 22 refers to SDK Token creation success.
+         * @see https://docs.payfort.com/docs/in-common/build/index.html#statuses
+         */
+        if ($response->status != '22' && $response->status != '20') {
+            throw new PayfortRequestException($response->response_message);
+        }
+
+        /*
+         * According to payfort documentation
+         * 22  refers to SDK Token creation success.
+         * 000 refers to success message
+         * @see https://docs.payfort.com/docs/in-common/build/index.html#messages
+         */
+        if ($response->response_code != '22000' && $response->response_code != '20064' ) {
+            throw new PayfortRequestException($response->response_message);
+        }
+
+
+        # return SDK token only
+        return $response;
+    }
+
+    /**
+     * Make Payfort Payment Purchase Request
+     *
+     * @see https://paymentservices-reference.payfort.com/docs/api/build/index.html#standard-merchant-page-integration-response
+     *
+     * @param array $data the data to submit to paymentAPI
+     * @return object Payfort response
+     *
+     * @throws \LaravelPayfort\Exceptions\PayfortRequestException
+     */
+    public function doPaymentPurchase($data)
+    {
+
+        $params = [
+            'command' => 'PURCHASE',
+            'access_code' => $this->config['access_code'],
+            'merchant_identifier' => $this->config['merchant_identifier'],
+            'merchant_reference' => $data['merchant_reference'],
+            'amount' => $this->getPayfortAmount($data['amount'], $data['currency']),
+            'language' => $this->config['language'],
+            'currency' => $data['currency'],                       
+            'customer_ip' =>  '119.160.96.72',//request()->ip(),  
+            'customer_email' => $data['customer_email'],  
+            'token_name' => $data['token_name'],
+            'return_url' => $this->config['return_url']
+        ];
+
+        // print_r($params);
+
+        $response = $this->callPayfortAPI($params);
+        // dd($response);
+        /*
+         * According to payfort documentation
+         * 22 refers to SDK Token creation success.
+         * @see https://docs.payfort.com/docs/in-common/build/index.html#statuses
+         */
+        if ($response->status != '22' && $response->status != '20') {
+            throw new PayfortRequestException($response->response_message);
+        }
+
+        /*
+         * According to payfort documentation
+         * 22  refers to SDK Token creation success.
+         * 000 refers to success message
+         * @see https://docs.payfort.com/docs/in-common/build/index.html#messages
+         */
+        if ($response->response_code != '22000' && $response->response_code != '20064' ) {
+            throw new PayfortRequestException($response->response_message);
+        }
+
+
+        # return SDK token only
+        return $response;
+    }
+
+    /**
      * Make Payfort check status request & return response.
      *
      * @see https://docs.payfort.com/docs/in-common/build/index.html#check-status
@@ -145,12 +255,15 @@ trait PayfortAPIRequest
         $data['signature'] = $this->calcPayfortSignature($data, 'request');
 
         try {
+            echo $this->payfortEndpoint;
             # Make http request
             $rawResponse = $this->httpClient->post($this->payfortEndpoint, [
                 'json' => $data
             ])->getBody();
 
             $response = json_decode($rawResponse);
+
+            // dd($response);
 
             if (data_get($response, 'status') == '00') {
                 throw new PayfortException(data_get($response, 'response_message'));
@@ -164,6 +277,7 @@ trait PayfortAPIRequest
             return $response;
 
         } catch (\Exception $e) {
+            // dd($e);
             throw new PayfortException($e);
         }
     }
